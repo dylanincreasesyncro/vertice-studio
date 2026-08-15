@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Vértice Studio — Generador de Campañas con IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#0a0a0c; --black-2:#111114;
+    --ivory:#ede7d9; --ivory-dim:#a39d8d;
+    --gold-1:#e8c778; --gold-2:#b8863a;
+    --burgundy:#3a1420;
+    --line:rgba(232,199,120,0.24);
+    --body:#d8d2c4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232,199,120,0.07), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(90,31,46,0.20), transparent 55%),
+      var(--black);
+    color:var(--ivory); font-family:'Manrope',sans-serif; line-height:1.6; min-height:100vh;
+  }
+  .display{font-family:'Cormorant Garamond',serif;}
+  .gold-text{
+    background:linear-gradient(120deg,#f3dca0 0%,#c99a4a 45%,#e8c778 70%,#b8863a 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 28px;}
+  header{ text-align:center; padding:70px 28px 40px; border-bottom:1px solid var(--line); }
+  .seal{ width:52px; height:52px; margin:0 auto 20px; border-radius:50%; border:1px solid var(--gold-1); display:flex; align-items:center; justify-content:center; position:relative; }
+  .seal::before{ content:''; position:absolute; inset:5px; border:1px solid rgba(232,199,120,0.4); border-radius:50%; }
+  .seal span{ font-family:'Cormorant Garamond',serif; font-size:17px; color:var(--gold-1); font-weight:600; }
+  .eyebrow{ font-size:10.5px; letter-spacing:4px; text-transform:uppercase; color:var(--ivory-dim); margin-bottom:14px; }
+  header h1{ font-size:clamp(30px,5vw,44px); font-weight:600; margin-bottom:14px; }
+  header p{ color:var(--ivory-dim); max-width:480px; margin:0 auto; font-size:14.5px; }
+  main{ padding:56px 0 90px; }
+  .panel{ border:1px solid var(--line); padding:38px; background:linear-gradient(180deg, rgba(232,199,120,0.03), transparent 40%); margin-bottom:32px; }
+  .panel-label{ font-size:10.5px; letter-spacing:3px; text-transform:uppercase; color:var(--gold-1); margin-bottom:22px; }
+  .field{ margin-bottom:20px; }
+  .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--ivory); margin-bottom:8px; }
+  .field input, .field textarea, .field select{
+    width:100%; background:var(--black-2); border:1px solid var(--line); color:var(--ivory);
+    padding:12px 14px; font-family:'Manrope',sans-serif; font-size:13.5px; border-radius:2px;
+  }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .field input:focus, .field textarea:focus, .field select:focus{ outline:none; border-color:var(--gold-1); }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .chip-group{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ padding:9px 16px; border:1px solid var(--line); border-radius:20px; font-size:12px; color:var(--ivory-dim); cursor:pointer; }
+  .chip.active{ border-color:var(--gold-1); color:var(--gold-1); background:rgba(232,199,120,0.08); }
+  .generate-btn{
+    display:block; width:100%; margin-top:8px; padding:16px;
+    background:linear-gradient(120deg,#f3dca0,#c99a4a); border:none; border-radius:2px;
+    color:#1a1206; font-weight:800; font-size:13.5px; letter-spacing:1px; text-transform:uppercase;
+    cursor:pointer; font-family:'Manrope',sans-serif;
+  }
+  .generate-btn:disabled{ opacity:0.5; cursor:wait; }
+  .status{ text-align:center; font-size:12.5px; color:var(--gold-1); margin-top:14px; display:none; }
+  .status.show{ display:block; }
+  .status.error{ color:#e0857a; }
+  .result{ display:none; }
+  .result.show{ display:block; }
+  .result-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .result-header .tag{ font-size:10.5px; letter-spacing:3px; text-transform:uppercase; color:var(--gold-1); }
+  .copy-btn{ background:transparent; border:1px solid var(--line); color:var(--ivory-dim); padding:8px 16px; font-size:11px; letter-spacing:1px; text-transform:uppercase; border-radius:2px; cursor:pointer; font-family:'Manrope',sans-serif; }
+  .copy-btn:hover{ border-color:var(--gold-1); color:var(--gold-1); }
+  .result-box{ background:var(--black-2); border-left:2px solid var(--gold-1); padding:26px 28px; font-size:14px; color:var(--body); white-space:pre-wrap; line-height:1.75; }
+  footer{ text-align:center; padding:36px 0; border-top:1px solid var(--line); font-size:10.5px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ivory-dim); }
+  @media(max-width:640px){ .row2{grid-template-columns:1fr;} .panel{padding:26px 20px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="seal"><span>V</span></div>
+  <div class="eyebrow">Vértice Studio · Motor de Campañas con IA</div>
+  <h1 class="display gold-text">Marketing real, para cualquier negocio.</h1>
+  <p>Describe tu negocio una vez. Genera anuncios, emails y mensajes de venta con estrategia real detrás.</p>
+</header>
+
+<main class="wrap">
+
+  <div class="panel" id="licensePanel">
+    <div class="panel-label">Código de acceso</div>
+    <div class="field">
+      <label>Ingresa tu código de licencia (te lo da tu proveedor de Vértice Studio)</label>
+      <input type="text" id="licenseCode" placeholder="Ej. TALLERGONZALEZ2026">
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Cuéntanos de tu negocio</div>
+
+    <div class="field">
+      <label>Nicho o giro del negocio</label>
+      <select id="niche">
+        <option value="Servicios profesionales (consultoría, legal, contable)">Servicios profesionales</option>
+        <option value="Oficios y trabajos manuales (plomería, electricidad, carpintería, mecánica)">Oficios y trabajos manuales</option>
+        <option value="Salud y bienestar (consultorios, clínicas, terapias)">Salud y bienestar</option>
+        <option value="Belleza y estética (salones, spas, barberías)">Belleza y estética</option>
+        <option value="Gastronomía (restaurantes, cafeterías, catering)">Gastronomía</option>
+        <option value="Retail y comercio local">Retail y comercio local</option>
+        <option value="Tecnología y software">Tecnología y software</option>
+        <option value="Educación y cursos">Educación y cursos</option>
+        <option value="Bienes raíces">Bienes raíces</option>
+        <option value="Fitness y deporte">Fitness y deporte</option>
+        <option value="Otro">Otro / no listado</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Nombre del negocio o producto</label>
+      <input type="text" id="productName" placeholder="Ej. Taller Mecánico González">
+    </div>
+
+    <div class="field">
+      <label>Descripción breve (qué resuelve, para quién)</label>
+      <textarea id="productDesc" placeholder="Ej. Reparación de autos con diagnóstico gratis y entrega el mismo día."></textarea>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Público objetivo</label>
+        <input type="text" id="audience" placeholder="Ej. Familias con autos de más de 5 años">
+      </div>
+      <div class="field">
+        <label>Precio o ancla (opcional)</label>
+        <input type="text" id="priceAnchor" placeholder="Ej. Desde $27 USD">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Tono de la campaña</label>
+      <div class="chip-group" id="toneGroup">
+        <div class="chip active" data-value="Ejecutivo y elegante">Ejecutivo</div>
+        <div class="chip" data-value="Cercano y cálido">Cercano</div>
+        <div class="chip" data-value="Urgente y directo">Urgente</div>
+        <div class="chip" data-value="Inspirador y aspiracional">Inspirador</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Tipo de campaña a generar</label>
+      <select id="campaignType">
+        <option value="Anuncio para Facebook/Instagram (formato corto, con hook, cuerpo y CTA)">Anuncio Facebook / Instagram</option>
+        <option value="Secuencia de 3 emails de venta (asunto + cuerpo cada uno)">Secuencia de 3 Emails</option>
+        <option value="Mensaje de WhatsApp para prospección directa">Mensaje de WhatsApp</option>
+        <option value="5 titulares alternativos para landing page">Titulares para Landing</option>
+        <option value="Guion corto para video/reel de 30 segundos">Guion para Reel/Video</option>
+      </select>
+    </div>
+
+    <button class="generate-btn" id="generateBtn">Generar Campaña</button>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <div class="panel result" id="resultPanel">
+    <div class="result-header">
+      <div class="tag" id="resultTag">Resultado</div>
+      <button class="copy-btn" id="copyBtn">Copiar texto</button>
+    </div>
+    <div class="result-box" id="resultBox"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Imagen para tu campaña</div>
+    <div class="field">
+      <label>Describe la imagen que necesitas</label>
+      <textarea id="imagePromptInput" placeholder="Ej. Foto profesional de un taller mecánico limpio y moderno, luz natural, estilo publicitario"></textarea>
+    </div>
+    <button class="generate-btn" id="generateImageBtn">Generar Imagen</button>
+    <div class="status" id="imageStatus"></div>
+    <div id="imageResultWrap" style="display:none; margin-top:20px; text-align:center;">
+      <img id="imageResult" style="max-width:100%; border:1px solid var(--line);">
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Video corto para tu campaña</div>
+    <div class="field">
+      <label>Describe el video que necesitas</label>
+      <textarea id="videoPromptInput" placeholder="Ej. Clip corto de un mecánico revisando un motor, cámara en movimiento suave, estilo comercial"></textarea>
+    </div>
+    <button class="generate-btn" id="generateVideoBtn">Generar Video</button>
+    <div class="status" id="videoStatus"></div>
+    <div id="videoResultWrap" style="display:none; margin-top:20px; text-align:center;">
+      <video id="videoResult" controls style="max-width:100%; border:1px solid var(--line);"></video>
+    </div>
+  </div>
+
+</main>
+
+<footer>Vértice Studio — Motor de Campañas con IA</footer>
+
+<script>
+// Marca guardada en el navegador del cliente (localStorage funciona en cualquier sitio web normal)
+const BRAND_KEY = 'vertice_studio_brand';
+const LICENSE_KEY = 'vertice_studio_license';
+
+window.addEventListener('DOMContentLoaded', () => {
+  const savedBrand = localStorage.getItem(BRAND_KEY);
+  if (savedBrand) {
+    try {
+      const b = JSON.parse(savedBrand);
+      if (b.niche) document.getElementById('niche').value = b.niche;
+      if (b.productName) document.getElementById('productName').value = b.productName;
+      if (b.productDesc) document.getElementById('productDesc').value = b.productDesc;
+      if (b.audience) document.getElementById('audience').value = b.audience;
+      if (b.priceAnchor) document.getElementById('priceAnchor').value = b.priceAnchor;
+    } catch(e) {}
+  }
+  const savedLicense = localStorage.getItem(LICENSE_KEY);
+  if (savedLicense) document.getElementById('licenseCode').value = savedLicense;
+});
+
+document.querySelectorAll('#toneGroup .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#toneGroup .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  const licenseCode = document.getElementById('licenseCode').value.trim();
+  const niche = document.getElementById('niche').value;
+  const productName = document.getElementById('productName').value.trim();
+  const productDesc = document.getElementById('productDesc').value.trim();
+  const audience = document.getElementById('audience').value.trim();
+  const priceAnchor = document.getElementById('priceAnchor').value.trim();
+  const tone = document.querySelector('#toneGroup .chip.active').dataset.value;
+  const campaignType = document.getElementById('campaignType').value;
+  const campaignLabel = document.getElementById('campaignType').selectedOptions[0].text;
+
+  if (!productName || !productDesc || !audience) {
+    alert('Completa al menos el nombre, la descripción y el público objetivo.');
+    return;
+  }
+
+  // Guarda la marca y la licencia en este navegador para la próxima visita
+  localStorage.setItem(BRAND_KEY, JSON.stringify({ niche, productName, productDesc, audience, priceAnchor }));
+  if (licenseCode) localStorage.setItem(LICENSE_KEY, licenseCode);
+
+  const btn = document.getElementById('generateBtn');
+  const status = document.getElementById('statusMsg');
+  const resultPanel = document.getElementById('resultPanel');
+  const resultBox = document.getElementById('resultBox');
+  const resultTag = document.getElementById('resultTag');
+
+  btn.disabled = true;
+  status.className = 'status show';
+  status.textContent = 'Escribiendo tu campaña...';
+  resultPanel.classList.remove('show');
+
+  const systemPrompt = `Eres un estratega de marketing senior con experiencia real vendiendo para negocios de todo tipo de nicho y oficio. Escribes en español neutro, con gancho real y sin relleno. Nunca uses emojis en exceso. Entrega el contenido solicitado listo para usar, y al final agrega una sección corta titulada "POR QUÉ FUNCIONA" con 2-3 líneas explicando la lógica estratégica. No agregues ninguna otra explicación.`;
+
+  const userPrompt = `Genera lo siguiente: ${campaignType}
+
+Nicho: ${niche}
+Negocio: ${productName}
+Descripción: ${productDesc}
+Público objetivo: ${audience}
+${priceAnchor ? 'Precio/ancla: ' + priceAnchor : ''}
+Tono: ${tone}
+
+Entrega el contenido final, listo para copiar y usar, y cierra con la sección "POR QUÉ FUNCIONA".`;
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseCode, systemPrompt, userPrompt })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      status.className = 'status show error';
+      status.textContent = data.error || 'No se pudo generar la campaña.';
+      btn.disabled = false;
+      return;
+    }
+
+    resultTag.textContent = campaignLabel;
+    resultBox.textContent = data.text;
+    resultPanel.classList.add('show');
+    status.classList.remove('show');
+
+  } catch (err) {
+    status.className = 'status show error';
+    status.textContent = 'Error de conexión. Intenta de nuevo.';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const text = document.getElementById('resultBox').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Copiado ✓';
+    setTimeout(() => btn.textContent = original, 1800);
+  });
+});
+
+document.getElementById('generateImageBtn').addEventListener('click', async () => {
+  const imagePrompt = document.getElementById('imagePromptInput').value.trim();
+  const licenseCode = document.getElementById('licenseCode').value.trim();
+  if (!imagePrompt) { alert('Describe la imagen que necesitas.'); return; }
+
+  const btn = document.getElementById('generateImageBtn');
+  const status = document.getElementById('imageStatus');
+  const wrap = document.getElementById('imageResultWrap');
+
+  btn.disabled = true;
+  status.className = 'status show';
+  status.textContent = 'Generando imagen... esto puede tardar hasta 30 segundos.';
+  wrap.style.display = 'none';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseCode, type: 'image', imagePrompt })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      status.className = 'status show error';
+      status.textContent = data.error || 'No se pudo generar la imagen.';
+      return;
+    }
+    document.getElementById('imageResult').src = data.url;
+    wrap.style.display = 'block';
+    status.classList.remove('show');
+  } catch (err) {
+    status.className = 'status show error';
+    status.textContent = 'Error de conexión.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('generateVideoBtn').addEventListener('click', async () => {
+  const videoPrompt = document.getElementById('videoPromptInput').value.trim();
+  const licenseCode = document.getElementById('licenseCode').value.trim();
+  if (!videoPrompt) { alert('Describe el video que necesitas.'); return; }
+
+  const btn = document.getElementById('generateVideoBtn');
+  const status = document.getElementById('videoStatus');
+  const wrap = document.getElementById('videoResultWrap');
+
+  btn.disabled = true;
+  status.className = 'status show';
+  status.textContent = 'Generando video... esto puede tardar 1-2 minutos.';
+  wrap.style.display = 'none';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseCode, type: 'video', videoPrompt })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      status.className = 'status show error';
+      status.textContent = data.error || 'No se pudo generar el video.';
+      return;
+    }
+    document.getElementById('videoResult').src = data.url;
+    wrap.style.display = 'block';
+    status.classList.remove('show');
+  } catch (err) {
+    status.className = 'status show error';
+    status.textContent = 'Error de conexión. Los videos pueden tardar más de lo que este plan de Netlify permite — revisa el README.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
