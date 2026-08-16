@@ -94,10 +94,11 @@ async function generateImage(prompt) {
 }
 
 // ---------- VIDEO (Replicate) ----------
-// Mismo patrón que imagen. Ojo: los modelos de video tardan más —
-// si tu plan de Netlify tiene límite de tiempo corto (10s en el plan gratis),
-// esta función puede necesitar pasarse a "Background Functions" (plan pago)
-// para no cortarse antes de terminar. Ver README.md.
+// Los videos tardan mucho más que una imagen (30s a varios minutos), y Netlify
+// corta las funciones a los 10 segundos en el plan gratis. Por eso esta función
+// NO espera a que el video termine: lo manda a "empezar" y regresa un ID de
+// seguimiento (predictionId). El navegador pregunta el estado cada pocos
+// segundos usando la función aparte netlify/functions/video-status.js.
 async function generateVideo(prompt) {
   const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
   const MODEL_VERSION = process.env.REPLICATE_VIDEO_MODEL_VERSION;
@@ -111,8 +112,20 @@ async function generateVideo(prompt) {
     };
   }
 
-  const output = await runReplicateAndWait(REPLICATE_API_TOKEN, MODEL_VERSION, { prompt });
-  return { statusCode: 200, body: JSON.stringify({ url: Array.isArray(output) ? output[0] : output }) };
+  const start = await fetch("https://api.replicate.com/v1/predictions", {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${REPLICATE_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ version: MODEL_VERSION, input: { prompt } }),
+  });
+  const prediction = await start.json();
+  if (!start.ok) {
+    return { statusCode: 500, body: JSON.stringify({ error: prediction.detail || "Error iniciando el video." }) };
+  }
+
+  return { statusCode: 200, body: JSON.stringify({ predictionId: prediction.id, status: prediction.status }) };
 }
 
 async function runReplicateAndWait(token, version, input) {
