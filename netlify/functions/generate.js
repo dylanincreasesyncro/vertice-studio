@@ -1,27 +1,18 @@
-// netlify/functions/prospects.js
+// netlify/functions/generate.js
 //
-// Busca negocios/prospectos reales usando OpenStreetMap (100% gratis, sin API key):
-//   - Nominatim: convierte una dirección/ciudad en coordenadas (geocoding).
-//   - Overpass API: busca negocios reales dentro de un radio (hasta 50 km).
+// Esta función corre en el servidor de Netlify, nunca en el navegador del cliente.
+// Por eso aquí SÍ es seguro usar tus claves reales — nunca se exponen al público.
 //
-// No requiere ninguna variable nueva en Netlify — reutiliza SUPABASE_URL y
-// SUPABASE_SERVICE_KEY que ya tienes configurados.
-//
-// Nota: OpenStreetMap tiene menos cobertura de negocios que Google en pueblos
-// chicos. Cuando actives Google Places más adelante, esta función se puede
-// reemplazar sin tocar el resto del sitio (la interfaz no cambia).
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
-const MAX_RADIUS_METERS = 50000; // 50 km, un límite razonable para no saturar Overpass
-const MAX_CITIES_PER_SEARCH = 5; // límite propio en modo multi-ciudad, por tiempo de espera
-const USER_AGENT = "VerticeStudio/1.0 (contacto@verticeia.com)"; // Nominatim exige identificarse
+// Soporta 3 tipos de generación: "text" (Claude), "image" y "video" (Replicate).
+// Necesitas tu propia cuenta en replicate.com y su API token para que
+// image/video funcionen — ver README.md, sección "Imágenes y Video".
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
+
+  const REQUIRE_LICENSE = process.env.REQUIRE_LICENSE === "true";
 
   let body;
   try {
@@ -30,83 +21,19 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: "Solicitud inválida." }) };
   }
 
-  const { licenseCode, mode, niche, location, radiusKm, cities } = body;
+  const { licenseCode, type = "text", systemPrompt, userPrompt, imagePrompt, videoPrompt } = body;
 
-  if (!licenseCode) {
-    return { statusCode: 402, body: JSON.stringify({ error: "Falta el código de licencia." }) };
-  }
-  if (!niche || !niche.trim()) {
-    return { statusCode: 400, body: JSON.stringify({ error: "Describe qué tipo de negocio buscas (ej. dentistas, talleres mecánicos)." }) };
+  if (REQUIRE_LICENSE) {
+    const check = await checkAndConsumeLicense(licenseCode, type);
+    if (!check.ok) {
+      return { statusCode: 402, body: JSON.stringify({ error: check.reason }) };
+    }
   }
 
   try {
-    // 1) Verifica la licencia y su cuota de prospección
-    const license = await getLicense(licenseCode);
-    if (!license) {
-      return { statusCode: 402, body: JSON.stringify({ error: "Código de licencia no válido." }) };
-    }
-    if (license.active === false) {
-      return { statusCode: 402, body: JSON.stringify({ error: "Esta licencia está desactivada." }) };
-    }
-    const used = license.prospects_used_this_month || 0;
-    const max = license.max_prospects_per_month ?? 20;
-    if (used >= max) {
-      return { statusCode: 402, body: JSON.stringify({ error: `Alcanzaste el límite de ${max} búsquedas de prospección este mes.` }) };
-    }
-
-    // 2) Ejecuta la búsqueda según el modo
-    let results = [];
-
-    if (mode === "multi") {
-      if (!Array.isArray(cities) || cities.length === 0) {
-        return { statusCode: 400, body: JSON.stringify({ error: "Escribe al menos una ciudad o pueblo." }) };
-      }
-      const cityList = cities.slice(0, MAX_CITIES_PER_SEARCH);
-      for (const city of cityList) {
-        const coords = await geocodeOSM(city);
-        if (coords) {
-          const found = await searchOverpass(coords, 15000, niche); // 15 km por ciudad en modo multi
-          results.push(...found);
-        }
-        await sleep(300); // respeta el uso justo de Nominatim
-      }
-    } else {
-      // modo "radius" (por defecto)
-      if (!location || !location.trim()) {
-        return { statusCode: 400, body: JSON.stringify({ error: "Indica la dirección o ciudad de tu negocio." }) };
-      }
-      const radiusMeters = Math.min(Math.max((radiusKm || 25) * 1000, 1000), MAX_RADIUS_METERS);
-
-      const coords = await geocodeOSM(location);
-      if (!coords) {
-        return { statusCode: 400, body: JSON.stringify({ error: "No pudimos ubicar esa dirección. Intenta con ciudad y estado." }) };
-      }
-
-      const found = await searchOverpass(coords, radiusMeters, niche);
-      results.push(...found);
-    }
-
-    // 3) Deduplica por nombre + dirección
-    const seen = new Set();
-    const deduped = results.filter(r => {
-      const key = `${r.name}|${r.address}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    // 4) Descuenta 1 uso de la cuota
-    await incrementProspectUsage(licenseCode, used + 1);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        results: deduped.slice(0, 60),
-        count: deduped.length,
-        source: "OpenStreetMap",
-        remaining: max - (used + 1),
-      }),
-    };
+    if (type === "image") return await generateImage(imagePrompt);
+    if (type === "video") return await generateVideo(videoPrompt);
+    return await generateText(systemPrompt, userPrompt);
   } catch (err) {
     return {
       statusCode: 500,
@@ -115,94 +42,146 @@ exports.handler = async function (event) {
   }
 };
 
-// ---------- Helpers ----------
+// ---------- TEXTO (Claude) ----------
+async function generateText(systemPrompt, userPrompt) {
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) {
+    return { statusCode: 500, body: JSON.stringify({ error: "Falta configurar ANTHROPIC_API_KEY." }) };
+  }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function getLicense(code) {
-  const url = `${SUPABASE_URL}/rest/v1/licenses?code=eq.${encodeURIComponent(code)}&select=*`;
-  const res = await fetch(url, {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
     headers: {
-      apikey: SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
     },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    return { statusCode: response.status, body: JSON.stringify({ error: data.error?.message || "Error al generar texto." }) };
+  }
+  const text = (data.content || []).map((c) => (c.type === "text" ? c.text : "")).filter(Boolean).join("\n");
+  return { statusCode: 200, body: JSON.stringify({ text }) };
+}
+
+// ---------- IMAGEN (Replicate) ----------
+// Requiere REPLICATE_API_TOKEN y REPLICATE_IMAGE_MODEL_VERSION en Netlify.
+// Elige tu modelo en replicate.com/explore (ej. un modelo tipo Stable Diffusion)
+// y copia su "version id" desde la página del modelo.
+async function generateImage(prompt) {
+  const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+  const MODEL_VERSION = process.env.REPLICATE_IMAGE_MODEL_VERSION;
+
+  if (!REPLICATE_API_TOKEN || !MODEL_VERSION) {
+    return {
+      statusCode: 501,
+      body: JSON.stringify({
+        error: "Generación de imágenes no configurada todavía. Falta REPLICATE_API_TOKEN o REPLICATE_IMAGE_MODEL_VERSION en Netlify.",
+      }),
+    };
+  }
+
+  const output = await runReplicateAndWait(REPLICATE_API_TOKEN, MODEL_VERSION, { prompt });
+  return { statusCode: 200, body: JSON.stringify({ url: Array.isArray(output) ? output[0] : output }) };
+}
+
+// ---------- VIDEO (Replicate) ----------
+// Mismo patrón que imagen. Ojo: los modelos de video tardan más —
+// si tu plan de Netlify tiene límite de tiempo corto (10s en el plan gratis),
+// esta función puede necesitar pasarse a "Background Functions" (plan pago)
+// para no cortarse antes de terminar. Ver README.md.
+async function generateVideo(prompt) {
+  const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+  const MODEL_VERSION = process.env.REPLICATE_VIDEO_MODEL_VERSION;
+
+  if (!REPLICATE_API_TOKEN || !MODEL_VERSION) {
+    return {
+      statusCode: 501,
+      body: JSON.stringify({
+        error: "Generación de video no configurada todavía. Falta REPLICATE_API_TOKEN o REPLICATE_VIDEO_MODEL_VERSION en Netlify.",
+      }),
+    };
+  }
+
+  const output = await runReplicateAndWait(REPLICATE_API_TOKEN, MODEL_VERSION, { prompt });
+  return { statusCode: 200, body: JSON.stringify({ url: Array.isArray(output) ? output[0] : output }) };
+}
+
+async function runReplicateAndWait(token, version, input) {
+  const start = await fetch("https://api.replicate.com/v1/predictions", {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ version, input }),
+  });
+  let prediction = await start.json();
+  if (!start.ok) throw new Error(prediction.detail || "Error iniciando la generación.");
+
+  // Poll hasta que termine (máximo ~25 intentos, 2s cada uno)
+  for (let i = 0; i < 25; i++) {
+    if (prediction.status === "succeeded") return prediction.output;
+    if (prediction.status === "failed" || prediction.status === "canceled") {
+      throw new Error("La generación falló en el proveedor.");
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+    const poll = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+      headers: { Authorization: `Token ${token}` },
+    });
+    prediction = await poll.json();
+  }
+  throw new Error("Tiempo de espera agotado. El video/imagen puede tardar más de lo que este plan permite.");
+}
+
+// ---------- LICENCIAS ----------
+async function checkAndConsumeLicense(code, type) {
+  if (!code) return { ok: false, reason: "Falta el código de licencia." };
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return { ok: false, reason: "El sistema de licencias no está configurado todavía." };
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/licenses?code=eq.${encodeURIComponent(code)}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
   });
   const rows = await res.json();
-  return rows && rows[0] ? rows[0] : null;
-}
+  if (!rows || rows.length === 0) return { ok: false, reason: "Código de licencia no válido." };
 
-async function incrementProspectUsage(code, newValue) {
-  const url = `${SUPABASE_URL}/rest/v1/licenses?code=eq.${encodeURIComponent(code)}`;
-  await fetch(url, {
+  const license = rows[0];
+  if (!license.active) return { ok: false, reason: "Esta licencia está inactiva. Contacta al proveedor." };
+
+  const fieldMap = {
+    text: ["text_used_this_month", "max_text_per_month"],
+    image: ["images_used_this_month", "max_images_per_month"],
+    video: ["videos_used_this_month", "max_videos_per_month"],
+  };
+  const [usedField, maxField] = fieldMap[type] || fieldMap.text;
+
+  if (license[usedField] >= license[maxField]) {
+    return { ok: false, reason: `Alcanzaste el límite de ${type === "text" ? "campañas de texto" : type === "image" ? "imágenes" : "videos"} de este mes en tu plan.` };
+  }
+
+  await fetch(`${SUPABASE_URL}/rest/v1/licenses?code=eq.${encodeURIComponent(code)}`, {
     method: "PATCH",
     headers: {
-      apikey: SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     },
-    body: JSON.stringify({ prospects_used_this_month: newValue }),
-  });
-}
-
-async function geocodeOSM(address) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-  const data = await res.json();
-  if (!data || !data[0]) return null;
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-}
-
-async function searchOverpass(coords, radiusMeters, niche) {
-  const term = escapeRegex(niche.trim());
-  const { lat, lng } = coords;
-
-  const query = `
-    [out:json][timeout:25];
-    (
-      node(around:${radiusMeters},${lat},${lng})["name"~"${term}",i];
-      way(around:${radiusMeters},${lat},${lng})["name"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["shop"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["amenity"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["office"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["craft"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["healthcare"~"${term}",i];
-    );
-    out center 40;
-  `;
-
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: { "Content-Type": "text/plain", "User-Agent": USER_AGENT },
-    body: query,
+    body: JSON.stringify({ [usedField]: license[usedField] + 1 }),
   });
 
-  if (!res.ok) return [];
-  const data = await res.json();
-  if (!data.elements) return [];
-
-  return data.elements.map(el => {
-    const tags = el.tags || {};
-    const addrParts = [
-      tags["addr:street"],
-      tags["addr:housenumber"],
-      tags["addr:suburb"],
-      tags["addr:city"],
-    ].filter(Boolean);
-
-    return {
-      name: tags.name || "Sin nombre registrado",
-      address: addrParts.length ? addrParts.join(", ") : "Sin dirección registrada en el mapa",
-      phone: tags.phone || tags["contact:phone"] || "",
-      website: tags.website || tags["contact:website"] || "",
-      rating: null,
-      mapsUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
-    };
-  }).filter(p => p.name !== "Sin nombre registrado");
+  return { ok: true };
 }
