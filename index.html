@@ -559,7 +559,7 @@ document.getElementById('generateVideoBtn').addEventListener('click', async () =
 
   btn.disabled = true;
   status.className = 'status show';
-  status.textContent = 'Generando video... esto puede tardar 1-2 minutos.';
+  status.textContent = 'Iniciando el video...';
   wrap.style.display = 'none';
 
   try {
@@ -574,19 +574,66 @@ document.getElementById('generateVideoBtn').addEventListener('click', async () =
     if (!response.ok) {
       status.className = 'status show error';
       status.textContent = data.error || 'No se pudo generar el video.';
+      btn.disabled = false;
       return;
     }
 
-    document.getElementById('videoResult').src = data.url;
-    wrap.style.display = 'block';
-    status.classList.remove('show');
+    // Ya arrancó en Replicate — ahora preguntamos cada 4 segundos si ya terminó
+    pollVideoStatus(data.predictionId, btn, status, wrap);
   } catch (err) {
     status.className = 'status show error';
-    status.textContent = 'Error de conexión. Los videos pueden tardar más de lo que este plan de Netlify permite — revisa el README.';
-  } finally {
+    status.textContent = 'Error de conexión.';
     btn.disabled = false;
   }
 });
+
+async function pollVideoStatus(predictionId, btn, status, wrap) {
+  const maxAttempts = 45; // 45 x 4s = 3 minutos máximo de espera
+  let attempts = 0;
+
+  const check = async () => {
+    attempts++;
+    try {
+      const response = await fetch('/api/video-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ predictionId })
+      });
+      const data = await response.json();
+
+      if (data.status === 'succeeded') {
+        document.getElementById('videoResult').src = data.url;
+        wrap.style.display = 'block';
+        status.classList.remove('show');
+        btn.disabled = false;
+        return;
+      }
+
+      if (data.status === 'failed') {
+        status.className = 'status show error';
+        status.textContent = data.error || 'La generación del video falló.';
+        btn.disabled = false;
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        status.className = 'status show error';
+        status.textContent = 'El video está tardando más de lo normal. Intenta de nuevo en unos minutos.';
+        btn.disabled = false;
+        return;
+      }
+
+      status.textContent = `Generando video... (${attempts * 4}s aprox.)`;
+      setTimeout(check, 4000);
+    } catch (err) {
+      status.className = 'status show error';
+      status.textContent = 'Error de conexión mientras se generaba el video.';
+      btn.disabled = false;
+    }
+  };
+
+  check();
+}
 
 // ---------- Prospección de clientes ----------
 
