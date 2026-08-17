@@ -6,3 +6,13 @@
   from = "/api/generate"
   to = "/.netlify/functions/generate"
   status = 200
+
+[[redirects]]
+  from = "/api/prospects"
+  to = "/.netlify/functions/prospects"
+  status = 200
+
+[[redirects]]
+  from = "/api/video-status"
+  to = "/.netlify/functions/video-status"
+  status = 200
