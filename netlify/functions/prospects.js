@@ -18,6 +18,69 @@ const MAX_RADIUS_METERS = 50000; // 50 km, un límite razonable para no saturar 
 const MAX_CITIES_PER_SEARCH = 5; // límite propio en modo multi-ciudad, por tiempo de espera
 const USER_AGENT = "VerticeStudio/1.0 (contacto@verticeia.com)"; // Nominatim exige identificarse
 
+// ---------- Diccionario de categorías exactas de OpenStreetMap ----------
+// OpenStreetMap NO guarda sus etiquetas en español — usa su propia taxonomía
+// en inglés (ej. "amenity=dentist", "shop=hairdresser"). Buscar "gimnasio"
+// como texto libre contra esas etiquetas casi nunca encontraba nada.
+// Este diccionario traduce los términos en español más comunes a la
+// combinación exacta [clave, valor] de OSM, para resultados mucho más precisos.
+// Las claves están normalizadas (sin acentos, minúsculas) — ver normalizeText().
+const NICHE_TAG_MAP = {
+  "restaurante": [["amenity", "restaurant"]],
+  "restaurantes": [["amenity", "restaurant"]],
+  "pizzeria": [["amenity", "restaurant"]],
+  "cafeteria": [["amenity", "cafe"]],
+  "cafe": [["amenity", "cafe"]],
+  "bar": [["amenity", "bar"]],
+  "gimnasio": [["leisure", "fitness_centre"]],
+  "gym": [["leisure", "fitness_centre"]],
+  "spa": [["leisure", "spa"], ["shop", "beauty"]],
+  "salon de belleza": [["shop", "beauty"]],
+  "estetica": [["shop", "beauty"]],
+  "peluqueria": [["shop", "hairdresser"]],
+  "barberia": [["shop", "hairdresser"]],
+  "dentista": [["amenity", "dentist"]],
+  "doctor": [["amenity", "doctors"]],
+  "medico": [["amenity", "doctors"]],
+  "clinica": [["amenity", "clinic"]],
+  "farmacia": [["amenity", "pharmacy"]],
+  "veterinaria": [["amenity", "veterinary"]],
+  "veterinario": [["amenity", "veterinary"]],
+  "hotel": [["tourism", "hotel"]],
+  "panaderia": [["shop", "bakery"]],
+  "pasteleria": [["shop", "pastry"]],
+  "carniceria": [["shop", "butcher"]],
+  "taller mecanico": [["shop", "car_repair"]],
+  "taller": [["shop", "car_repair"]],
+  "mecanico": [["shop", "car_repair"]],
+  "lavanderia": [["shop", "laundry"]],
+  "tintoreria": [["shop", "dry_cleaning"]],
+  "ropa": [["shop", "clothes"]],
+  "boutique": [["shop", "clothes"]],
+  "zapateria": [["shop", "shoes"]],
+  "ferreteria": [["shop", "hardware"]],
+  "supermercado": [["shop", "supermarket"]],
+  "abarrotes": [["shop", "convenience"]],
+  "tienda de conveniencia": [["shop", "convenience"]],
+  "joyeria": [["shop", "jewelry"]],
+  "optica": [["shop", "optician"]],
+  "floreria": [["shop", "florist"]],
+  "papeleria": [["shop", "stationery"]],
+  "escuela": [["amenity", "school"]],
+  "guarderia": [["amenity", "childcare"]],
+  "banco": [["amenity", "bank"]],
+  "abogado": [["office", "lawyer"]],
+  "notaria": [["office", "lawyer"]],
+  "contador": [["office", "accountant"]],
+  "inmobiliaria": [["office", "estate_agent"]],
+  "agencia de viajes": [["office", "travel_agent"]],
+  "gasolinera": [["amenity", "fuel"]],
+  "autolavado": [["shop", "car_wash"]],
+  "car wash": [["shop", "car_wash"]],
+  "tatuajes": [["shop", "tattoo"]],
+  "tattoo": [["shop", "tattoo"]],
+};
+
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
@@ -125,6 +188,16 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Quita acentos y pasa a minúsculas, para que "óptica" y "optica" hagan
+// match con la misma entrada del diccionario NICHE_TAG_MAP.
+function normalizeText(str) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 async function getLicense(code) {
   const url = `${SUPABASE_URL}/rest/v1/licenses?code=eq.${encodeURIComponent(code)}&select=*`;
   const res = await fetch(url, {
@@ -159,20 +232,41 @@ async function geocodeOSM(address) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-async function searchOverpass(coords, radiusMeters, niche) {
-  const term = escapeRegex(niche.trim());
-  const { lat, lng } = coords;
+// Arma la parte "filters" de la consulta Overpass. Si el término de búsqueda
+// coincide con una entrada de NICHE_TAG_MAP, busca por la etiqueta EXACTA
+// de OpenStreetMap (mucho más preciso). Si no, usa la búsqueda difusa por
+// nombre/etiquetas de texto libre (comportamiento anterior, como respaldo).
+function buildOverpassFilters(radiusMeters, lat, lng, niche) {
+  const normalized = normalizeText(niche);
+  const tagMatches = NICHE_TAG_MAP[normalized];
 
-  const query = `
-    [out:json][timeout:25];
-    (
+  if (tagMatches) {
+    return tagMatches
+      .map(([key, value]) => `
+      node(around:${radiusMeters},${lat},${lng})["${key}"="${value}"];
+      way(around:${radiusMeters},${lat},${lng})["${key}"="${value}"];`)
+      .join("");
+  }
+
+  // Respaldo: búsqueda difusa por texto libre (como antes)
+  const term = escapeRegex(niche.trim());
+  return `
       node(around:${radiusMeters},${lat},${lng})["name"~"${term}",i];
       way(around:${radiusMeters},${lat},${lng})["name"~"${term}",i];
       node(around:${radiusMeters},${lat},${lng})["shop"~"${term}",i];
       node(around:${radiusMeters},${lat},${lng})["amenity"~"${term}",i];
       node(around:${radiusMeters},${lat},${lng})["office"~"${term}",i];
       node(around:${radiusMeters},${lat},${lng})["craft"~"${term}",i];
-      node(around:${radiusMeters},${lat},${lng})["healthcare"~"${term}",i];
+      node(around:${radiusMeters},${lat},${lng})["healthcare"~"${term}",i];`;
+}
+
+async function searchOverpass(coords, radiusMeters, niche) {
+  const { lat, lng } = coords;
+  const filters = buildOverpassFilters(radiusMeters, lat, lng, niche);
+
+  const query = `
+    [out:json][timeout:25];
+    (${filters}
     );
     out center 40;
   `;
