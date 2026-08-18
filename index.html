@@ -518,7 +518,7 @@ document.getElementById('generateImageBtn').addEventListener('click', async () =
 
   btn.disabled = true;
   status.className = 'status show';
-  status.textContent = 'Generando imagen... esto puede tardar hasta 30 segundos.';
+  status.textContent = 'Iniciando la imagen...';
   wrap.style.display = 'none';
 
   try {
@@ -533,16 +533,21 @@ document.getElementById('generateImageBtn').addEventListener('click', async () =
     if (!response.ok) {
       status.className = 'status show error';
       status.textContent = data.error || 'No se pudo generar la imagen.';
+      btn.disabled = false;
       return;
     }
 
-    document.getElementById('imageResult').src = data.url;
-    wrap.style.display = 'block';
-    status.classList.remove('show');
+    // Ya arrancó en Replicate — ahora preguntamos cada 2 segundos si ya terminó
+    pollGenerationStatus(data.predictionId, {
+      btn, status, wrap,
+      resultElId: 'imageResult',
+      maxAttempts: 30, // 30 x 2s = 1 minuto máximo de espera
+      intervalMs: 2000,
+      label: 'imagen',
+    });
   } catch (err) {
     status.className = 'status show error';
     status.textContent = 'Error de conexión.';
-  } finally {
     btn.disabled = false;
   }
 });
@@ -579,7 +584,13 @@ document.getElementById('generateVideoBtn').addEventListener('click', async () =
     }
 
     // Ya arrancó en Replicate — ahora preguntamos cada 4 segundos si ya terminó
-    pollVideoStatus(data.predictionId, btn, status, wrap);
+    pollGenerationStatus(data.predictionId, {
+      btn, status, wrap,
+      resultElId: 'videoResult',
+      maxAttempts: 90, // 90 x 4s = 6 minutos máximo de espera (video tarda más que imagen)
+      intervalMs: 4000,
+      label: 'video',
+    });
   } catch (err) {
     status.className = 'status show error';
     status.textContent = 'Error de conexión.';
@@ -587,8 +598,10 @@ document.getElementById('generateVideoBtn').addEventListener('click', async () =
   }
 });
 
-async function pollVideoStatus(predictionId, btn, status, wrap) {
-  const maxAttempts = 45; // 45 x 4s = 3 minutos máximo de espera
+// Función genérica de polling — sirve tanto para imagen como para video,
+// ambos usan la misma función video-status.js del backend (solo consulta
+// el estado de un predictionId en Replicate, no le importa el tipo).
+async function pollGenerationStatus(predictionId, { btn, status, wrap, resultElId, maxAttempts, intervalMs, label }) {
   let attempts = 0;
 
   const check = async () => {
@@ -602,7 +615,7 @@ async function pollVideoStatus(predictionId, btn, status, wrap) {
       const data = await response.json();
 
       if (data.status === 'succeeded') {
-        document.getElementById('videoResult').src = data.url;
+        document.getElementById(resultElId).src = data.url;
         wrap.style.display = 'block';
         status.classList.remove('show');
         btn.disabled = false;
@@ -611,29 +624,30 @@ async function pollVideoStatus(predictionId, btn, status, wrap) {
 
       if (data.status === 'failed') {
         status.className = 'status show error';
-        status.textContent = data.error || 'La generación del video falló.';
+        status.textContent = data.error || `La generación de ${label} falló.`;
         btn.disabled = false;
         return;
       }
 
       if (attempts >= maxAttempts) {
         status.className = 'status show error';
-        status.textContent = 'El video está tardando más de lo normal. Intenta de nuevo en unos minutos.';
+        status.textContent = `El/la ${label} está tardando más de lo normal. Intenta de nuevo en unos minutos.`;
         btn.disabled = false;
         return;
       }
 
-      status.textContent = `Generando video... (${attempts * 4}s aprox.)`;
-      setTimeout(check, 4000);
+      status.textContent = `Generando ${label}... (${Math.round(attempts * intervalMs / 1000)}s aprox.)`;
+      setTimeout(check, intervalMs);
     } catch (err) {
       status.className = 'status show error';
-      status.textContent = 'Error de conexión mientras se generaba el video.';
+      status.textContent = `Error de conexión mientras se generaba ${label === 'imagen' ? 'la imagen' : 'el video'}.`;
       btn.disabled = false;
     }
   };
 
   check();
 }
+
 
 // ---------- Prospección de clientes ----------
 
