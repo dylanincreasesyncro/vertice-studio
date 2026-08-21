@@ -81,6 +81,30 @@ const NICHE_TAG_MAP = {
   "tattoo": [["shop", "tattoo"]],
 };
 
+// Términos genéricos: cuando el usuario NO busca un giro específico sino
+// "cualquier negocio" de la zona (útil para prospectar clientes de
+// servicios web en general, no de un nicho en particular).
+const GENERIC_TERMS = new Set([
+  "negocio",
+  "negocios",
+  "negocio local",
+  "negocios locales",
+  "cliente",
+  "clientes",
+  "prospecto",
+  "prospectos",
+  "prospectos para negocio",
+  "prospectos de negocio",
+  "cualquier negocio",
+  "todos los negocios",
+  "empresa",
+  "empresas",
+  "comercio",
+  "comercios",
+  "pyme",
+  "pymes",
+]);
+
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
@@ -238,6 +262,20 @@ async function geocodeOSM(address) {
 // nombre/etiquetas de texto libre (comportamiento anterior, como respaldo).
 function buildOverpassFilters(radiusMeters, lat, lng, niche) {
   const normalized = normalizeText(niche);
+
+  // Búsqueda genérica: "cualquier negocio" de la zona, sin nicho específico.
+  if (GENERIC_TERMS.has(normalized)) {
+    return `
+      node(around:${radiusMeters},${lat},${lng})["shop"];
+      way(around:${radiusMeters},${lat},${lng})["shop"];
+      node(around:${radiusMeters},${lat},${lng})["office"];
+      way(around:${radiusMeters},${lat},${lng})["office"];
+      node(around:${radiusMeters},${lat},${lng})["craft"];
+      node(around:${radiusMeters},${lat},${lng})["amenity"~"restaurant|cafe|bar|dentist|doctors|pharmacy|bank|clinic|veterinary|fuel"];
+      node(around:${radiusMeters},${lat},${lng})["leisure"~"fitness_centre|spa"];
+      node(around:${radiusMeters},${lat},${lng})["tourism"="hotel"];`;
+  }
+
   const tagMatches = NICHE_TAG_MAP[normalized];
 
   if (tagMatches) {
@@ -295,6 +333,7 @@ async function searchOverpass(coords, radiusMeters, niche) {
       address: addrParts.length ? addrParts.join(", ") : "Sin dirección registrada en el mapa",
       phone: tags.phone || tags["contact:phone"] || "",
       website: tags.website || tags["contact:website"] || "",
+      category: tags.shop || tags.amenity || tags.office || tags.craft || tags.leisure || tags.tourism || "",
       rating: null,
       mapsUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
     };
