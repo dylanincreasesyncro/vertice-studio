@@ -204,6 +204,100 @@ footer p{ font-family:var(--mono); font-size:9.5px; letter-spacing:2.5px; text-t
       <label>Ingresa tu código de licencia (te lo da tu proveedor de Vértice Studio)</label>
       <input type="text" id="licenseCode" placeholder="Ej. TALLERGONZALEZ2026">
     </div>
+
+    <div id="trialToggleWrap" style="margin-top:10px;">
+      <span class="hint">¿No tienes código todavía? <button type="button" id="trialToggleBtn" style="background:none;border:none;color:var(--gold-1);text-decoration:underline;cursor:pointer;font-family:var(--sans);font-size:11px;padding:0;">🎁 Empieza tu prueba gratis de 3 días</button></span>
+    </div>
+
+    <div id="trialFormWrap" style="display:none;margin-top:14px;">
+      <div class="field">
+        <label>Tu correo</label>
+        <input type="email" id="trialEmail" placeholder="tucorreo@ejemplo.com">
+      </div>
+      <div class="field">
+        <label>Nombre de tu negocio (opcional)</label>
+        <input type="text" id="trialBusinessName" placeholder="Ej. Taller González">
+      </div>
+      <button class="generate-btn" id="startTrialBtn" type="button">Activar prueba de 3 días</button>
+      <div class="status" id="trialStatus"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="pricingPanel">
+    <div class="corner-bl"></div><div class="corner-br"></div>
+    <div class="panel-label"><span class="folio mono">01B</span><span>Planes y pago</span></div>
+
+    <div class="pricing-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:12px;">
+
+      <div class="plan-card" style="border:1px solid var(--line);padding:16px;">
+        <div class="display" style="font-size:20px;color:var(--gold-1);">Starter</div>
+        <div class="mono" style="font-size:24px;margin:6px 0 12px;">$19<span style="font-size:12px;color:var(--ivory-dim);">/mes</span></div>
+        <div class="hint" style="margin-bottom:12px;">30 textos · 10 imágenes · 5 videos al mes</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="starter" data-amount="19" href="https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dylanincrease%40gmail.com&amount=19&currency_code=USD&item_name=Vertice+Studio+-+Plan+Starter" target="_blank" rel="noopener">💳 Pagar con PayPal / Tarjeta</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="starter" data-amount="19" href="https://clip.mx/@saltillonullnullvictormedina" target="_blank" rel="noopener">🅲 Pagar con Clip ($19 USD)</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="starter" data-amount="19" href="https://app.spinbyoxxo.com.mx/deposito/xN7Q3eHU" target="_blank" rel="noopener">🏪 Pagar con Spin by OXXO</a>
+        </div>
+      </div>
+
+      <div class="plan-card" style="border:1px solid var(--gold-1);padding:16px;">
+        <div class="display" style="font-size:20px;color:var(--gold-1);">Pro <span style="font-size:11px;color:var(--ivory-dim);">· más popular</span></div>
+        <div class="mono" style="font-size:24px;margin:6px 0 12px;">$39<span style="font-size:12px;color:var(--ivory-dim);">/mes</span></div>
+        <div class="hint" style="margin-bottom:12px;">100 textos · 40 imágenes · 20 videos al mes</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="pro" data-amount="39" href="https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dylanincrease%40gmail.com&amount=39&currency_code=USD&item_name=Vertice+Studio+-+Plan+Pro" target="_blank" rel="noopener">💳 Pagar con PayPal / Tarjeta</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="pro" data-amount="39" href="https://clip.mx/@saltillonullnullvictormedina" target="_blank" rel="noopener">🅲 Pagar con Clip ($39 USD)</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="pro" data-amount="39" href="https://app.spinbyoxxo.com.mx/deposito/xN7Q3eHU" target="_blank" rel="noopener">🏪 Pagar con Spin by OXXO</a>
+        </div>
+      </div>
+
+      <div class="plan-card" style="border:1px solid var(--line);padding:16px;">
+        <div class="display" style="font-size:20px;color:var(--gold-1);">Agencia</div>
+        <div class="mono" style="font-size:24px;margin:6px 0 12px;">$79<span style="font-size:12px;color:var(--ivory-dim);">/mes</span></div>
+        <div class="hint" style="margin-bottom:12px;">300 textos · 120 imágenes · 60 videos al mes</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="agencia" data-amount="79" href="https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dylanincrease%40gmail.com&amount=79&currency_code=USD&item_name=Vertice+Studio+-+Plan+Agencia" target="_blank" rel="noopener">💳 Pagar con PayPal / Tarjeta</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="agencia" data-amount="79" href="https://clip.mx/@saltillonullnullvictormedina" target="_blank" rel="noopener">🅲 Pagar con Clip ($79 USD)</a>
+          <a class="generate-btn" style="text-align:center;text-decoration:none;display:block;font-size:12px;padding:10px;" data-plan="agencia" data-amount="79" href="https://app.spinbyoxxo.com.mx/deposito/xN7Q3eHU" target="_blank" rel="noopener">🏪 Pagar con Spin by OXXO</a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="hint" style="margin-top:16px;">⚠️ Con Clip y con Spin by OXXO, escribe el monto exacto del plan que elegiste antes de pagar.</div>
+
+    <div id="upgradeToggleWrap" style="margin-top:14px;">
+      <span class="hint">¿Ya pagaste? <button type="button" id="upgradeToggleBtn" style="background:none;border:none;color:var(--gold-1);text-decoration:underline;cursor:pointer;font-family:var(--sans);font-size:11px;padding:0;">✅ Avísanos para activar tu cuenta</button></span>
+    </div>
+
+    <div id="upgradeFormWrap" style="display:none;margin-top:14px;">
+      <div class="field">
+        <label>Tu correo (el mismo que usaste para pagar)</label>
+        <input type="email" id="upgradeEmail" placeholder="tucorreo@ejemplo.com">
+      </div>
+      <div class="field">
+        <label>Nombre de tu negocio (opcional)</label>
+        <input type="text" id="upgradeBusinessName" placeholder="Ej. Taller González">
+      </div>
+      <div class="field">
+        <label>Plan que pagaste</label>
+        <select id="upgradePlan">
+          <option value="starter">Starter — $19/mes</option>
+          <option value="pro">Pro — $39/mes</option>
+          <option value="agencia">Agencia — $79/mes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Método de pago que usaste</label>
+        <select id="upgradeMethod">
+          <option value="paypal">PayPal / Tarjeta</option>
+          <option value="clip">Clip</option>
+          <option value="spin">Spin by OXXO</option>
+        </select>
+      </div>
+      <button class="generate-btn" id="submitUpgradeBtn" type="button">Enviar para activar mi cuenta</button>
+      <div class="status" id="upgradeStatus"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -335,6 +429,8 @@ footer p{ font-family:var(--mono); font-size:9.5px; letter-spacing:2.5px; text-t
     <div class="field">
       <label>¿Qué tipo de negocio buscas?</label>
       <input type="text" id="prospectNiche" placeholder="Ej. dentistas, talleres mecánicos, restaurantes">
+      <span class="hint">Escribe el TIPO de negocio (no la descripción de tus clientes). ¿No sabes cuál poner? <button type="button" id="suggestNicheBtn" style="background:none;border:none;color:var(--gold-1);text-decoration:underline;cursor:pointer;font-family:var(--sans);font-size:11px;padding:0;">🤖 Ayúdame a elegir</button></span>
+      <div class="chip-group" id="nicheSuggestions" style="margin-top:8px;"></div>
     </div>
 
     <div class="prospect-fields active" id="radiusFields">
@@ -397,6 +493,99 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   const savedLicense = localStorage.getItem(LICENSE_KEY);
   if (savedLicense) document.getElementById('licenseCode').value = savedLicense;
+
+  document.getElementById('upgradeToggleBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('upgradeFormWrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.getElementById('submitUpgradeBtn').addEventListener('click', async () => {
+    const email = document.getElementById('upgradeEmail').value.trim();
+    const businessName = document.getElementById('upgradeBusinessName').value.trim();
+    const plan = document.getElementById('upgradePlan').value;
+    const paymentMethod = document.getElementById('upgradeMethod').value;
+    const trialCode = document.getElementById('licenseCode').value.trim();
+    const btn = document.getElementById('submitUpgradeBtn');
+    const status = document.getElementById('upgradeStatus');
+
+    if (!email) { alert('Escribe el correo que usaste para pagar.'); return; }
+
+    btn.disabled = true;
+    status.className = 'status show';
+    status.textContent = 'Enviando...';
+
+    try {
+      const response = await fetch('/api/upgrade-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, businessName, plan, paymentMethod, trialCode })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        status.className = 'status show error';
+        status.textContent = data.error || 'No se pudo enviar tu solicitud.';
+        return;
+      }
+
+      status.className = 'status show';
+      status.textContent = '¡Listo! Recibimos tu confirmación de pago. Vas a recibir tu código de acceso completo en unas horas.';
+      document.getElementById('upgradeFormWrap').style.display = 'none';
+    } catch (err) {
+      status.className = 'status show error';
+      status.textContent = 'Error de conexión enviando tu solicitud.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('trialToggleBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('trialFormWrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.getElementById('startTrialBtn').addEventListener('click', async () => {
+    const email = document.getElementById('trialEmail').value.trim();
+    const businessName = document.getElementById('trialBusinessName').value.trim();
+    const btn = document.getElementById('startTrialBtn');
+    const status = document.getElementById('trialStatus');
+
+    if (!email) { alert('Escribe tu correo para activar la prueba.'); return; }
+
+    btn.disabled = true;
+    status.className = 'status show';
+    status.textContent = 'Activando tu prueba...';
+
+    try {
+      const response = await fetch('/api/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, businessName })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        status.className = 'status show error';
+        status.textContent = data.error || 'No se pudo activar la prueba.';
+        return;
+      }
+
+      document.getElementById('licenseCode').value = data.code;
+      localStorage.setItem(LICENSE_KEY, data.code);
+
+      const expiresDate = new Date(data.expiresAt);
+      const fecha = expiresDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
+      status.className = 'status show';
+      status.textContent = `¡Listo! Tu código de prueba es ${data.code} — válido hasta el ${fecha}.`;
+      document.getElementById('trialFormWrap').style.display = 'none';
+    } catch (err) {
+      status.className = 'status show error';
+      status.textContent = 'Error de conexión activando la prueba.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // Revelado suave de paneles al hacer scroll
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -697,11 +886,80 @@ radiusSlider.addEventListener('input', () => {
   document.getElementById('radiusValue').textContent = radiusSlider.value;
 });
 
+document.getElementById('suggestNicheBtn').addEventListener('click', async () => {
+  const licenseCode = document.getElementById('licenseCode').value.trim();
+  const nicheInput = document.getElementById('prospectNiche');
+  const suggestBtn = document.getElementById('suggestNicheBtn');
+  const suggestionsBox = document.getElementById('nicheSuggestions');
+
+  let description = nicheInput.value.trim();
+  if (!description) {
+    description = (window.prompt('Describe a tu cliente ideal o el negocio que quieres encontrar (puede ser largo, la IA lo va a resumir):') || '').trim();
+    if (!description) return;
+  }
+
+  suggestBtn.disabled = true;
+  suggestBtn.textContent = '🤖 Pensando...';
+  suggestionsBox.innerHTML = '';
+
+  const systemPrompt = `Eres un asistente que traduce descripciones libres de negocios o de clientes ideales en TÉRMINOS CORTOS de tipo de negocio, listos para buscar en un directorio de mapas. Responde ÚNICAMENTE con una lista separada por comas de 3 a 5 términos cortos en español (una o dos palabras cada uno, sin artículos ni explicaciones), del tipo "gimnasios", "dentistas", "restaurantes", "salones de belleza". No agregues numeración, viñetas ni texto adicional — solo los términos separados por comas.`;
+  const userPrompt = `Un usuario escribió esto en un buscador de prospectos de negocios: "${description}"
+
+Esto puede ya ser un tipo de negocio, o puede ser una descripción de a quién le quiere vender. Dame 3 a 5 tipos de negocio concretos y buscables que tengan sentido para encontrar prospectos relacionados con esto.`;
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseCode, systemPrompt, userPrompt })
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      suggestionsBox.innerHTML = `<span class="hint" style="color:#e0857a;">${escapeHtml(data.error || 'No se pudo generar la sugerencia.')}</span>`;
+      return;
+    }
+
+    const terms = (data.text || '')
+      .split(',')
+      .map(t => t.trim().replace(/^[-•\d.\s]+/, ''))
+      .filter(Boolean)
+      .slice(0, 5);
+
+    if (terms.length === 0) {
+      suggestionsBox.innerHTML = '<span class="hint">No se pudieron generar sugerencias, intenta describirlo distinto.</span>';
+      return;
+    }
+
+    terms.forEach(term => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = term;
+      chip.addEventListener('click', () => {
+        nicheInput.value = term;
+        suggestionsBox.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+      suggestionsBox.appendChild(chip);
+    });
+  } catch (err) {
+    suggestionsBox.innerHTML = '<span class="hint" style="color:#e0857a;">Error de conexión generando la sugerencia.</span>';
+  } finally {
+    suggestBtn.disabled = false;
+    suggestBtn.textContent = '🤖 Ayúdame a elegir';
+  }
+});
+
 document.getElementById('generateProspectsBtn').addEventListener('click', async () => {
   const licenseCode = document.getElementById('licenseCode').value.trim();
   const niche = document.getElementById('prospectNiche').value.trim();
 
   if (!niche) { alert('Escribe qué tipo de negocio buscas.'); return; }
+
+  if (niche.length > 60) {
+    alert('Ese texto es muy largo para ser un tipo de negocio — parece más una descripción de clientes. Usa el botón "🤖 Ayúdame a elegir" para convertirlo en tipos de negocio concretos.');
+    return;
+  }
 
   const btn = document.getElementById('generateProspectsBtn');
   const status = document.getElementById('prospectStatus');
@@ -751,7 +1009,7 @@ document.getElementById('generateProspectsBtn').addEventListener('click', async 
     let html = `<div class="prospect-summary">${data.results.length} prospectos encontrados · Fuente: ${data.source || 'OpenStreetMap'} · Búsquedas restantes este mes: ${data.remaining}</div><div class="prospect-list">`;
     data.results.forEach(p => {
       html += `<div class="prospect-card">
-        <div class="p-name">${escapeHtml(p.name)}</div>
+        <div class="p-name">${escapeHtml(p.name)}${p.category ? ` <span style="color:var(--gold-1);font-size:11px;font-weight:400;">· ${escapeHtml(p.category)}</span>` : ''}</div>
         <div class="p-address">${escapeHtml(p.address)}</div>
         <div class="p-meta">
           ${p.phone ? `<span>${escapeHtml(p.phone)}</span>` : ''}
